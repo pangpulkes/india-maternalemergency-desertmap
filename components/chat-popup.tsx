@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { MessageCircle, X, Send } from "lucide-react"
+import { MessageCircle, X, Send, Search } from "lucide-react"
+import { useChat } from "@ai-sdk/react"
 import type { Facility } from "@/lib/types"
 
 const SUGGESTED_PROMPTS = [
@@ -15,23 +16,42 @@ const FACILITY_PROMPTS = [
   "Are there better alternatives nearby?",
 ]
 
-interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-}
-
 interface ChatPopupProps {
   selectedFacility?: Facility | null
 }
 
 export function ChatPopup({ selectedFacility }: ChatPopupProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const { messages, input, setInput, handleSubmit, isLoading, error } = useChat({
+    api: "/api/chat",
+    body: {
+      selectedFacility: selectedFacility ? {
+        name: selectedFacility.name,
+        city: selectedFacility.city,
+        state: selectedFacility.state,
+        trust_score: selectedFacility.trust_score,
+        evidence: selectedFacility.evidence,
+        red_flags: selectedFacility.red_flags,
+        phone: selectedFacility.phone,
+        has_emergency_ob: selectedFacility.has_emergency_ob,
+      } : null,
+    },
+    onResponse: () => {
+      setIsSearching(false)
+    },
+    onFinish: () => {
+      setIsSearching(false)
+    },
+    onToolCall: ({ toolCall }) => {
+      if (toolCall.toolName === "web_search") {
+        setIsSearching(true)
+      }
+    },
+  })
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -39,66 +59,19 @@ export function ChatPopup({ selectedFacility }: ChatPopupProps) {
     }
   }, [isOpen])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          selectedFacility: selectedFacility ? {
-            name: selectedFacility.name,
-            city: selectedFacility.city,
-            state: selectedFacility.state,
-            trust_score: selectedFacility.trust_score,
-            evidence: selectedFacility.evidence,
-            red_flags: selectedFacility.red_flags,
-            phone: selectedFacility.phone,
-            has_emergency_ob: selectedFacility.has_emergency_ob,
-          } : null,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to get response")
-      }
-
-      const text = await response.text()
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: text,
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   const handleSuggestedPrompt = (prompt: string) => {
     setInput(prompt)
     inputRef.current?.focus()
+  }
+
+  const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!input?.trim() || isLoading) return
+    handleSubmit(e)
   }
 
   const renderMessageContent = (content: string) => {
@@ -148,7 +121,7 @@ export function ChatPopup({ selectedFacility }: ChatPopupProps) {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
                 <p className="font-medium">Connection Error</p>
-                <p className="text-xs mt-1">{error}</p>
+                <p className="text-xs mt-1">{error.message || "Failed to connect"}</p>
               </div>
             )}
             {messages.length === 0 && !error && (
@@ -197,7 +170,7 @@ export function ChatPopup({ selectedFacility }: ChatPopupProps) {
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm ${
+                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap ${
                     message.role === "user"
                       ? "bg-[#639922] text-white rounded-br-sm"
                       : "bg-gray-100 text-gray-800 rounded-bl-sm"
@@ -207,7 +180,19 @@ export function ChatPopup({ selectedFacility }: ChatPopupProps) {
                 </div>
               </div>
             ))}
-            {isLoading && (
+            
+            {/* Web Search Indicator */}
+            {isSearching && (
+              <div className="flex justify-start">
+                <div className="bg-blue-50 border border-blue-200 px-3 py-2 rounded-2xl rounded-bl-sm flex items-center gap-2">
+                  <Search className="w-4 h-4 text-blue-500 animate-pulse" />
+                  <span className="text-xs text-blue-600">Searching web...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Typing Indicator */}
+            {isLoading && !isSearching && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 px-3 py-2 rounded-2xl rounded-bl-sm">
                   <div className="flex gap-1">
@@ -218,22 +203,23 @@ export function ChatPopup({ selectedFacility }: ChatPopupProps) {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-3 border-t flex-shrink-0">
+          <form onSubmit={onFormSubmit} className="p-3 border-t flex-shrink-0">
             <div className="flex gap-2">
               <input
                 ref={inputRef}
                 type="text"
-                value={input}
+                value={input ?? ""}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask a question..."
                 className="flex-1 px-3 py-2 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-[#639922] focus:border-transparent bg-white"
               />
               <button
                 type="submit"
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || !input?.trim()}
                 className="w-10 h-10 rounded-full bg-[#639922] text-white flex items-center justify-center hover:bg-[#537a1c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="Send message"
               >
