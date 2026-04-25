@@ -11,7 +11,7 @@ const SUGGESTED_PROMPTS = [
 
 export function ChatPopup() {
   const [isOpen, setIsOpen] = useState(false)
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput, error } = useChat({
     api: "/api/chat",
   })
 
@@ -64,6 +64,12 @@ export function ChatPopup() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                <p className="font-medium">Connection Error</p>
+                <p className="text-xs mt-1">{error.message || "Failed to connect to AI. Please try again."}</p>
+              </div>
+            )}
             {messages.length === 0 && (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-3">How can I help you?</p>
