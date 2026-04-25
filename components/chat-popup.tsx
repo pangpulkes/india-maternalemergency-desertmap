@@ -114,14 +114,14 @@ export function ChatPopup() {
             <div className="flex gap-2">
               <input
                 type="text"
-                value={input}
+                value={input ?? ""}
                 onChange={handleInputChange}
                 placeholder="Ask a question..."
                 className="flex-1 px-3 py-2 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-[#639922] focus:border-transparent"
               />
               <button
                 type="submit"
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || !input?.trim()}
                 className="w-10 h-10 rounded-full bg-[#639922] text-white flex items-center justify-center hover:bg-[#537a1c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="Send message"
               >
