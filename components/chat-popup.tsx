@@ -6,14 +6,17 @@ import { useChat } from "@ai-sdk/react"
 import type { Facility } from "@/lib/types"
 
 const SUGGESTED_PROMPTS = [
-  "Which states have worst coverage?",
-  "Find verified facilities near Bihar",
+  "Which 5 states need urgent maternal health investment?",
+  "Where should we open the next verified maternity clinic?",
+  "Which districts in Bihar have the worst coverage?",
+  "What type of support does Maharashtra need most?",
+  "Compare Kerala and UP gap rates",
 ]
 
 const FACILITY_PROMPTS = [
-  "Is this facility trustworthy?",
-  "What are the concerns here?",
-  "Are there better alternatives nearby?",
+  "Is this facility a reliable partner for referrals?",
+  "What infrastructure gaps exist here?",
+  "Are there verified alternatives we could partner with nearby?",
 ]
 
 interface ChatPopupProps {
@@ -112,8 +115,8 @@ export function ChatPopup({ selectedFacility }: ChatPopupProps) {
         <div className="fixed bottom-20 right-4 z-[1001] w-[calc(100%-2rem)] max-w-[360px] h-[40vh] max-h-[400px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Chat Header */}
           <div className="bg-[#1a2e1a] text-white px-4 py-3 flex-shrink-0">
-            <h3 className="font-semibold text-sm">AI Assistant</h3>
-            <p className="text-xs text-white/70">Ask about maternal facilities</p>
+            <h3 className="font-semibold text-sm">Resource Planning Agent</h3>
+            <p className="text-xs text-white/70">AI-powered allocation guidance for NGOs</p>
           </div>
 
           {/* Messages */}
