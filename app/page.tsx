@@ -25,10 +25,14 @@ export default function Home() {
   const [userRatings, setUserRatings] = useState<Record<string, { recommend: boolean; tags: string[] }>>({})
 
   useEffect(() => {
-    fetch("/results.json")
+    fetch("/api/facilities")
       .then((res) => res.json())
       .then((data) => {
-        setFacilities(data)
+        if (Array.isArray(data)) {
+          setFacilities(data)
+        } else if (data.error) {
+          console.error("API error:", data.error)
+        }
         setIsLoading(false)
       })
       .catch((err) => {
