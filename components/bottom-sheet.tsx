@@ -11,21 +11,35 @@ interface BottomSheetProps {
   onRatingChange?: (facilityId: string, recommend: boolean, tags: string[]) => void
 }
 
-const RATING_TAGS = [
-  "Good staff",
-  "Clean facility",
-  "Quick service",
-  "Affordable",
-  "Poor hygiene",
-  "Long wait",
-  "Lack of equipment",
-  "Rude staff",
+const RECOMMEND_TAGS = [
+  "24/7 confirmed",
+  "C-section available",
+  "Blood bank on site",
+  "Anesthesiologist present",
+  "NICU available",
+  "Ambulance service",
+]
+
+const NOT_RECOMMEND_TAGS = [
+  "Closed / no longer operating",
+  "No emergency service despite claim",
+  "Referred me elsewhere",
+  "No OB doctor available",
+  "Equipment listed but not functional",
+]
+
+const DATA_QUALITY_TAGS = [
+  "Phone number is wrong",
+  "Address is incorrect",
+  "Facility has moved",
+  "Other",
 ]
 
 export function BottomSheet({ facility, onClose, userRatings = {}, onRatingChange }: BottomSheetProps) {
   if (!facility) return null
 
   const [showTags, setShowTags] = useState(false)
+  const [otherFeedback, setOtherFeedback] = useState("")
   const facilityId = `${facility.name}-${facility.city}`
   const currentRating = userRatings[facilityId]
   const recommend = currentRating?.recommend ?? null
@@ -196,26 +210,68 @@ export function BottomSheet({ facility, onClose, userRatings = {}, onRatingChang
             </div>
 
             {recommend !== null && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs font-medium text-gray-600 mb-2">
-                  {recommend ? "What was good?" : "What could improve?"}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {RATING_TAGS.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => handleTagToggle(tag)}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                        selectedTags.includes(tag)
-                          ? recommend
-                            ? "bg-[#639922] text-white"
-                            : "bg-red-500 text-white"
-                          : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
+              <div className="space-y-3">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">
+                    {recommend ? "Confirming capability" : "Flagging overclaims"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(recommend ? RECOMMEND_TAGS : NOT_RECOMMEND_TAGS).map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => handleTagToggle(tag)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                          selectedTags.includes(tag)
+                            ? recommend
+                              ? "bg-[#639922] text-white"
+                              : "bg-red-500 text-white"
+                            : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">Additional feedback (helps us improve data)</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {DATA_QUALITY_TAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          if (tag === "Other") {
+                            // Toggle other feedback input
+                            if (selectedTags.includes(tag)) {
+                              handleTagToggle(tag)
+                              setOtherFeedback("")
+                            } else {
+                              handleTagToggle(tag)
+                            }
+                          } else {
+                            handleTagToggle(tag)
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                          selectedTags.includes(tag)
+                            ? "bg-blue-500 text-white"
+                            : "bg-white border border-blue-200 text-gray-700 hover:border-blue-300"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTags.includes("Other") && (
+                    <input
+                      type="text"
+                      placeholder="Tell us more..."
+                      value={otherFeedback}
+                      onChange={(e) => setOtherFeedback(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  )}
                 </div>
               </div>
             )}
