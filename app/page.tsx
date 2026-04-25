@@ -164,46 +164,17 @@ export default function Home() {
 
         if (!res.ok) throw new Error("Chat API error")
 
-        // Stream the response
-        const reader = res.body?.getReader()
-        const decoder = new TextDecoder()
-        let assistantText = ""
-        const assistantId = `assistant-${Date.now()}`
+        const data = await res.json()
+        const assistantText = data.content
 
-        // Add placeholder message
         setMessages((prev) => [
           ...prev,
-          { id: assistantId, role: "assistant", content: "" },
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            content: assistantText,
+          },
         ])
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            const chunk = decoder.decode(value, { stream: true })
-
-            // Parse AI SDK streaming format: lines starting with "0:"
-            const lines = chunk.split("\n")
-            for (const line of lines) {
-              if (line.startsWith("0:")) {
-                try {
-                  const jsonStr = line.slice(2)
-                  const parsed = JSON.parse(jsonStr)
-                  if (typeof parsed === "string") {
-                    assistantText += parsed
-                    setMessages((prev) =>
-                      prev.map((m) =>
-                        m.id === assistantId ? { ...m, content: assistantText } : m
-                      )
-                    )
-                  }
-                } catch {
-                  // Non-JSON chunk, skip
-                }
-              }
-            }
-          }
-        }
 
         parseRecommendationsFromMessage(assistantText)
       } catch (err) {
@@ -357,6 +328,7 @@ export default function Home() {
           onSuggestedPrompt={onSuggestedPrompt}
           isLoading={isLoading}
           isSearching={isSearching}
+          onDownloadBrief={handleDownloadBrief}
         />
 
         <div className="flex-1 relative">

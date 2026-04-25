@@ -17,6 +17,8 @@ interface ChatPanelProps {
   onSuggestedPrompt: (text: string) => void
   isLoading: boolean
   isSearching: boolean
+  onDownloadBrief: () => void
+
 }
 
 const SUGGESTED_PROMPTS = [
@@ -34,6 +36,7 @@ export function ChatPanel({
   onSuggestedPrompt,
   isLoading,
   isSearching,
+  onDownloadBrief,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -83,16 +86,26 @@ export function ChatPanel({
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[90%] px-3 py-2.5 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${
-                message.role === "user"
-                  ? "bg-[#639922] text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-800 rounded-bl-sm"
-              }`}
+              className={`max-w-[90%] px-3 py-2.5 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${message.role === "user"
+                ? "bg-[#639922] text-white rounded-br-sm"
+                : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                }`}
             >
               {message.role === "user"
                 ? message.content
                 : renderMessageContent(message.content)}
             </div>
+
+            {message.role === "assistant" &&
+              message.id !== "initial" &&
+              !isLoading && (
+                <button
+                  onClick={onDownloadBrief}
+                  className="mt-1 text-xs px-3 py-1.5 bg-[#1a2e1a] text-white rounded-lg hover:bg-[#2a4a2a] transition-colors inline-flex items-center gap-1.5 w-fit"
+                >
+                  ↓ Download Intervention Brief
+                </button>
+              )}
           </div>
         ))}
 
