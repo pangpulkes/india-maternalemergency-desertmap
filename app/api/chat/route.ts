@@ -48,14 +48,17 @@ function computeStats(facilities: Facility[]) {
   const uncertain = facilities.filter((f) => f.trust_score >= 0.4 && f.trust_score <= 0.7).length
   const gaps = facilities.filter((f) => f.trust_score < 0.4).length
 
-  const stateStats: Record<string, { total: number; gaps: number }> = {}
+  const stateStats: Record<string, { total: number; gaps: number; verified: number }> = {}
   facilities.forEach((f) => {
     if (!stateStats[f.state]) {
-      stateStats[f.state] = { total: 0, gaps: 0 }
+      stateStats[f.state] = { total: 0, gaps: 0, verified: 0 }
     }
     stateStats[f.state].total++
     if (f.trust_score < 0.4) {
       stateStats[f.state].gaps++
+    }
+    if (f.trust_score > 0.7) {
+      stateStats[f.state].verified++
     }
   })
 
@@ -64,17 +67,18 @@ function computeStats(facilities: Facility[]) {
       state,
       gapRate: stats.total > 0 ? stats.gaps / stats.total : 0,
       gaps: stats.gaps,
+      verified: stats.verified,
       total: stats.total,
     }))
     .filter((s) => s.gaps > 0)
     .sort((a, b) => b.gapRate - a.gapRate)
-    .slice(0, 5)
+    .slice(0, 10)
 
-  const cityStats: Record<string, { total: number; verified: number }> = {}
+  const cityStats: Record<string, { total: number; verified: number; state: string }> = {}
   facilities.forEach((f) => {
     const cityKey = `${f.city}, ${f.state}`
     if (!cityStats[cityKey]) {
-      cityStats[cityKey] = { total: 0, verified: 0 }
+      cityStats[cityKey] = { total: 0, verified: 0, state: f.state }
     }
     cityStats[cityKey].total++
     if (f.trust_score > 0.7) {
@@ -87,12 +91,19 @@ function computeStats(facilities: Facility[]) {
       city,
       total: stats.total,
       verified: stats.verified,
+      state: stats.state,
     }))
     .filter((c) => c.verified === 0 && c.total > 1)
     .sort((a, b) => b.total - a.total)
-    .slice(0, 5)
+    .slice(0, 10)
 
-  return { total, verified, uncertain, gaps, topGapStates, citiesNoVerified }
+  // Find facilities that could be upgraded (uncertain score with some evidence)
+  const upgradeableFacilities = facilities
+    .filter((f) => f.trust_score >= 0.3 && f.trust_score < 0.7 && f.evidence.length > 0)
+    .sort((a, b) => b.trust_score - a.trust_score)
+    .slice(0, 10)
+
+  return { total, verified, uncertain, gaps, topGapStates, citiesNoVerified, upgradeableFacilities }
 }
 
 async function searchTavily(query: string): Promise<string> {
@@ -108,7 +119,7 @@ async function searchTavily(query: string): Promise<string> {
       body: JSON.stringify({
         api_key: apiKey,
         query,
-        search_depth: "basic",
+        search_depth: "advanced",
         max_results: 5,
       }),
     })
@@ -121,12 +132,12 @@ async function searchTavily(query: string): Promise<string> {
     const results = data.results || []
 
     if (results.length === 0) {
-      return "No web results found for this facility."
+      return "No web results found."
     }
 
     return results
       .map((r: { title: string; content: string; url: string }) => 
-        `- ${r.title}: ${r.content.slice(0, 200)}... (${r.url})`
+        `- ${r.title}: ${r.content.slice(0, 300)}... (${r.url})`
       )
       .join("\n")
   } catch {
@@ -136,16 +147,17 @@ async function searchTavily(query: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { messages, selectedFacility, ngoInputs } = await req.json()
+    const { messages, selectedFacility, conversationalMode, extractedStates } = await req.json()
 
     const facilities = await fetchFacilities()
     
-    // Filter facilities to NGO's selected states if provided
-    const relevantFacilities = ngoInputs?.states?.length > 0
-      ? facilities.filter((f) => ngoInputs.states.includes(f.state))
+    // Filter facilities to extracted states if provided
+    const relevantFacilities = extractedStates?.length > 0
+      ? facilities.filter((f: Facility) => extractedStates.includes(f.state))
       : facilities
     
     const stats = computeStats(relevantFacilities)
+    const allStats = computeStats(facilities)
 
     let facilityContext = ""
     if (selectedFacility) {
@@ -160,79 +172,79 @@ CURRENTLY SELECTED FACILITY:
 - Red Flags: ${selectedFacility.red_flags?.join(", ") || "None"}
 - Phone: ${selectedFacility.phone || "Not available"}
 
-When the user asks generic questions like "Is this trustworthy?" or "What are the concerns?", answer about THIS facility specifically. Use the web_search tool to find more information about this facility if needed.`
+When discussing this facility, provide specific recommendations for NGO engagement.`
     }
 
-    // Build NGO context if available
-    let ngoContext = ""
-    if (ngoInputs) {
-      const budgetMap: Record<string, string> = {
-        "under-50l": "Under ₹50 lakhs",
-        "50l-1cr": "₹50L – ₹1 crore",
-        "1cr-5cr": "₹1 – 5 crore",
-        "above-5cr": "Above ₹5 crore",
-      }
-      const timelineMap: Record<string, string> = {
-        "under-6m": "Under 6 months",
-        "6m-12m": "6 – 12 months",
-        "1y-3y": "1 – 3 years",
-      }
-      const goalMap: Record<string, string> = {
-        "reduce-mortality": "Reduce maternal mortality",
-        "increase-coverage": "Increase verified facility coverage",
-        "build-referrals": "Build referral networks",
-      }
+    const systemPrompt = `You are a maternal emergency planning agent helping NGO planners allocate resources effectively across India's maternal healthcare landscape.
 
-      ngoContext = `
+AUDIT DATA SUMMARY (${facilities.length} total facilities):
+- Verified Capable (trust >70%): ${allStats.verified}
+- Uncertain (trust 40-70%): ${allStats.uncertain}
+- Coverage Gaps (trust <40%): ${allStats.gaps}
 
-NGO PLANNER PROFILE (tailor all recommendations to these constraints):
-- Operating States: ${ngoInputs.states.join(", ")}
-- Budget: ${budgetMap[ngoInputs.budget] || ngoInputs.budget}
-- Fundable Interventions: ${ngoInputs.interventions.join(", ")}
-- Timeline: ${timelineMap[ngoInputs.timeline] || ngoInputs.timeline}
-- Primary Goal: ${goalMap[ngoInputs.goal] || ngoInputs.goal}
+TOP 10 PRIORITY STATES (by gap rate):
+${allStats.topGapStates.map((s) => `- ${s.state}: ${Math.round(s.gapRate * 100)}% gap rate, ${s.gaps} gaps, ${s.verified} verified`).join("\n")}
 
-IMPORTANT: All recommendations should be filtered to their operating states and feasible within their budget and timeline. Prioritize interventions they can actually fund.`
-    }
+CITIES WITH HIGHEST UNMET NEED (facilities but 0 verified):
+${allStats.citiesNoVerified.map((c) => `- ${c.city}: ${c.total} facilities, 0 verified`).join("\n")}
 
-    const systemPrompt = `You are a Resource Planning Agent helping NGO planners and public health officials make data-driven decisions about maternal healthcare investments in India. You have access to live audit data on ${stats.total} facilities.
-${ngoContext}
-
-LIVE DATA SUMMARY:
-- Total Facilities Audited: ${stats.total}
-- Verified Capable (trust >70%): ${stats.verified}
-- Uncertain (trust 40-70%): ${stats.uncertain}
-- Coverage Gaps (trust <40%): ${stats.gaps}
-
-TOP 5 PRIORITY STATES (by gap rate):
-${stats.topGapStates.map((s) => `- ${s.state}: ${Math.round(s.gapRate * 100)}% gap rate (${s.gaps}/${s.total} facilities)`).join("\n")}
-
-CITIES WITH MOST FACILITIES BUT ZERO VERIFIED (priority for capacity building):
-${stats.citiesNoVerified.map((c) => `- ${c.city}: ${c.total} facilities, 0 verified`).join("\n")}
+FACILITIES WITH UPGRADE POTENTIAL (uncertain but have evidence):
+${allStats.upgradeableFacilities.map((f) => `- ${f.name}, ${f.city}, ${f.state}: ${Math.round(f.trust_score * 100)}% trust, Evidence: ${f.evidence.join(", ")}`).join("\n")}
 ${facilityContext}
 
-YOUR ROLE:
-You help NGO planners answer questions like:
-- Where should we invest next?
-- Which states/districts need urgent intervention?
-- What type of support (equipment, training, infrastructure) is most needed?
-- Which facilities could become referral partners with support?
-- How do regions compare for resource allocation prioritization?
+YOUR CONVERSATION FLOW:
+1. FIRST MESSAGE: Greet and ask about their organization (states, budget, interventions, timeline)
+2. EXTRACT CONSTRAINTS: Parse their natural language response to identify:
+   - Operating states (e.g., "we work in Bihar and UP")
+   - Budget range (e.g., "around 2 crore", "50 lakhs")
+   - Intervention types (e.g., "equipment", "training", "new facilities")
+   - Timeline (e.g., "next 6 months", "this year")
+   - Primary goal (e.g., "reduce mortality", "increase coverage")
+3. USE WEB SEARCH: Call web_search tool to get district-level context for their states
+4. GENERATE INTERVENTION PLAN: Provide a structured plan with:
+
+**INTERVENTION PLAN FORMAT** (use exactly this structure when you have enough info):
+
+## Your Tailored Intervention Plan
+
+Based on your constraints, here are the highest-impact opportunities:
+
+### Recommended Site #1: [Facility Name]
+- **Location:** [City, State]
+- **Current Status:** [Trust score, key issues]
+- **Intervention Type:** [Equipment/Training/Infrastructure]
+- **Estimated Population Impact:** [X lakhs people within 50km]
+- **Contact:** [Phone number]
+- **Why This Site:** [2-3 sentences on why this is strategic]
+
+### Recommended Site #2: [Facility Name]
+[Same format]
+
+### Recommended Site #3: [Facility Name]
+[Same format]
+
+### Implementation Roadmap
+- **Month 1-2:** [Action items]
+- **Month 3-4:** [Action items]
+- **Month 5-6:** [Action items]
+
+### Expected Outcomes
+- [Metric 1]
+- [Metric 2]
 
 GUIDELINES:
-- Trust scores above 70% = VERIFIED - ready for partnership/referrals
-- Trust scores 40-70% = UNCERTAIN - potential for capacity building investment
-- Trust scores below 40% = COVERAGE GAP - needs intervention or new facility development
-- Always frame recommendations in terms of investment priorities and resource allocation
-- When discussing specific facilities, assess their potential for NGO partnership
-- When you use the web_search tool, mention that you are supplementing audit data with live web intelligence
-- Be data-driven and actionable - NGO planners need concrete recommendations
-- Always show phone numbers clearly when mentioning specific facilities for follow-up
-- Format phone numbers so they can be tapped to call
+- Be conversational and helpful - this is a dialogue, not a form
+- Extract constraints naturally from what they say
+- Always ground recommendations in the audit data
+- When mentioning facilities, ALWAYS include phone numbers
+- Use web_search to supplement audit data with district context
+- Prioritize facilities with upgrade potential (uncertain but have evidence)
+- Consider geographic distribution for maximum population impact
+- Format phone numbers clearly for easy calling
 
-FACILITY DATA (filtered to operating states):
-${JSON.stringify(relevantFacilities.slice(0, 50), null, 2)}
-${relevantFacilities.length > 50 ? `\n... and ${relevantFacilities.length - 50} more facilities` : ""}`
+FACILITY DATA FOR RECOMMENDATIONS:
+${JSON.stringify(relevantFacilities.slice(0, 100), null, 2)}
+${relevantFacilities.length > 100 ? `\n... and ${relevantFacilities.length - 100} more facilities in selected states` : ""}`
 
     const result = streamText({
       model: groq("llama-3.3-70b-versatile"),
@@ -240,19 +252,17 @@ ${relevantFacilities.length > 50 ? `\n... and ${relevantFacilities.length - 50} 
       messages,
       tools: {
         web_search: tool({
-          description: "Search the web for more information about a specific maternity hospital or facility. Use this when discussing a specific facility to supplement trust score data with live information.",
+          description: "Search the web for district-level maternal health context, government programs, or specific facility information. Use this to supplement audit data with current information about regions the NGO is interested in.",
           parameters: z.object({
-            facilityName: z.string().describe("The name of the facility to search for"),
-            city: z.string().describe("The city where the facility is located"),
+            query: z.string().describe("Search query - e.g., 'Bihar maternal mortality rate 2024' or 'Patna maternity hospitals government programs'"),
           }),
-          execute: async ({ facilityName, city }) => {
-            const query = `${facilityName} ${city} India maternity hospital emergency reviews`
+          execute: async ({ query }) => {
             const results = await searchTavily(query)
             return results
           },
         }),
       },
-      maxSteps: 3,
+      maxSteps: 5,
     })
 
     return result.toDataStreamResponse()

@@ -3,48 +3,19 @@
 import { useState, useRef, useEffect } from "react"
 import { MessageCircle, X, Send, Search } from "lucide-react"
 import { useChat } from "@ai-sdk/react"
-import type { Facility, NGOInputs } from "@/lib/types"
+import type { Facility } from "@/lib/types"
 
 const FACILITY_PROMPTS = [
   "Is this facility a reliable partner for referrals?",
   "What infrastructure gaps exist here?",
-  "Are there verified alternatives we could partner with nearby?",
+  "Are there verified alternatives nearby?",
 ]
-
-const formatBudget = (budget: string) => {
-  const budgetMap: Record<string, string> = {
-    "under-50l": "Under ₹50 lakhs",
-    "50l-1cr": "₹50L – ₹1 crore",
-    "1cr-5cr": "₹1 – 5 crore",
-    "above-5cr": "Above ₹5 crore",
-  }
-  return budgetMap[budget] || budget
-}
-
-const formatTimeline = (timeline: string) => {
-  const timelineMap: Record<string, string> = {
-    "under-6m": "Under 6 months",
-    "6m-12m": "6 – 12 months",
-    "1y-3y": "1 – 3 years",
-  }
-  return timelineMap[timeline] || timeline
-}
-
-const formatGoal = (goal: string) => {
-  const goalMap: Record<string, string> = {
-    "reduce-mortality": "Reduce maternal mortality",
-    "increase-coverage": "Increase verified facility coverage",
-    "build-referrals": "Build referral networks",
-  }
-  return goalMap[goal] || goal
-}
 
 interface ChatPopupProps {
   selectedFacility?: Facility | null
-  ngoInputs?: NGOInputs | null
 }
 
-export function ChatPopup({ selectedFacility, ngoInputs }: ChatPopupProps) {
+export function ChatPopup({ selectedFacility }: ChatPopupProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -63,21 +34,7 @@ export function ChatPopup({ selectedFacility, ngoInputs }: ChatPopupProps) {
         phone: selectedFacility.phone,
         has_emergency_ob: selectedFacility.has_emergency_ob,
       } : null,
-      ngoInputs: ngoInputs ? {
-        states: ngoInputs.states,
-        budget: ngoInputs.budget,
-        interventions: ngoInputs.interventions,
-        timeline: ngoInputs.timeline,
-        goal: ngoInputs.goal,
-      } : null,
     },
-    initialMessages: ngoInputs ? [
-      {
-        id: "initial",
-        role: "assistant",
-        content: `Based on your inputs, I've analyzed the maternal healthcare landscape across ${ngoInputs.states.join(", ")}.\n\n**Your Profile:**\n- Budget: ${formatBudget(ngoInputs.budget)}\n- Interventions: ${ngoInputs.interventions.join(", ")}\n- Timeline: ${formatTimeline(ngoInputs.timeline)}\n- Goal: ${formatGoal(ngoInputs.goal)}\n\nI'm ready to help you identify the highest-impact investment opportunities. What would you like to explore first?`,
-      },
-    ] : [],
     onResponse: () => {
       setIsSearching(false)
     },
@@ -151,7 +108,7 @@ export function ChatPopup({ selectedFacility, ngoInputs }: ChatPopupProps) {
           {/* Chat Header */}
           <div className="bg-[#1a2e1a] text-white px-4 py-3 flex-shrink-0">
             <h3 className="font-semibold text-sm">Resource Planning Agent</h3>
-            <p className="text-xs text-white/70">AI-powered allocation guidance for NGOs</p>
+            <p className="text-xs text-white/70">AI-powered allocation guidance</p>
           </div>
 
           {/* Messages */}
@@ -162,50 +119,25 @@ export function ChatPopup({ selectedFacility, ngoInputs }: ChatPopupProps) {
                 <p className="text-xs mt-1">{error.message || "Failed to connect"}</p>
               </div>
             )}
-            {messages.length === 0 && !error && (
+            {messages.length === 0 && !error && selectedFacility && (
               <div className="text-center py-4">
-                {selectedFacility ? (
-                  <>
-                    <div className="bg-[#639922]/10 rounded-lg p-2 mb-3 text-left">
-                      <p className="text-xs font-medium text-[#639922]">Currently viewing:</p>
-                      <p className="text-sm font-semibold text-gray-800">{selectedFacility.name}</p>
-                      <p className="text-xs text-gray-500">{selectedFacility.city}, {selectedFacility.state}</p>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-3">Ask about this facility:</p>
-                    <div className="flex flex-col gap-2">
-                      {FACILITY_PROMPTS.map((prompt) => (
-                        <button
-                          key={prompt}
-                          onClick={() => handleSuggestedPrompt(prompt)}
-                          className="px-3 py-2 text-xs bg-[#639922]/10 hover:bg-[#639922]/20 rounded-full text-[#639922] transition-colors"
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : ngoInputs ? (
-                  <>
-                    <p className="text-sm text-gray-500 mb-3">Explore your intervention plan:</p>
-                    <div className="flex flex-col gap-2">
-                      {[
-                        `Which facilities in ${ngoInputs.states[0]} are best for ${ngoInputs.interventions[0]}?`,
-                        `Where should we prioritize ${ngoInputs.interventions.join(" and ")}?`,
-                        `What's the fastest path to ${formatGoal(ngoInputs.goal).toLowerCase()}?`,
-                      ].map((prompt) => (
-                        <button
-                          key={prompt}
-                          onClick={() => handleSuggestedPrompt(prompt)}
-                          className="px-3 py-2 text-xs bg-[#639922]/10 hover:bg-[#639922]/20 rounded-full text-[#639922] transition-colors text-left"
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-500">How can I help you?</p>
-                )}
+                <div className="bg-[#639922]/10 rounded-lg p-2 mb-3 text-left">
+                  <p className="text-xs font-medium text-[#639922]">Currently viewing:</p>
+                  <p className="text-sm font-semibold text-gray-800">{selectedFacility.name}</p>
+                  <p className="text-xs text-gray-500">{selectedFacility.city}, {selectedFacility.state}</p>
+                </div>
+                <p className="text-sm text-gray-500 mb-3">Ask about this facility:</p>
+                <div className="flex flex-col gap-2">
+                  {FACILITY_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => handleSuggestedPrompt(prompt)}
+                      className="px-3 py-2 text-xs bg-[#639922]/10 hover:bg-[#639922]/20 rounded-full text-[#639922] transition-colors"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {messages.map((message) => (

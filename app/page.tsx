@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
-import { IntakeForm } from "@/components/intake-form"
-import { LoadingScreen } from "@/components/loading-screen"
-import { Dashboard } from "@/components/dashboard"
+import { FullScreenChat } from "@/components/full-screen-chat"
 import { Header } from "@/components/header"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { ChatPopup } from "@/components/chat-popup"
-import type { Facility, StateData, NGOInputs } from "@/lib/types"
+import type { Facility, StateData } from "@/lib/types"
 
 // Dynamically import the map to avoid SSR issues with Leaflet
 const FacilityMap = dynamic(() => import("@/components/facility-map").then((mod) => mod.FacilityMap), {
@@ -20,15 +18,13 @@ const FacilityMap = dynamic(() => import("@/components/facility-map").then((mod)
   ),
 })
 
-type AppStage = "intake" | "loading" | "output"
-type ViewMode = "dashboard" | "map"
+type ViewMode = "chat" | "map"
 
 export default function Home() {
-  const [appStage, setAppStage] = useState<AppStage>("intake")
-  const [viewMode, setViewMode] = useState<ViewMode>("dashboard")
-  const [ngoInputs, setNgoInputs] = useState<NGOInputs | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>("chat")
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [stateData, setStateData] = useState<StateData[]>([])
+  const [selectedStates, setSelectedStates] = useState<string[]>([])
   const [selectedState, setSelectedState] = useState("")
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -55,13 +51,13 @@ export default function Home() {
       })
   }, [])
 
-  // Filter facilities and state data based on NGO's selected states
-  const filteredStateData = ngoInputs
-    ? stateData.filter((s) => ngoInputs.states.includes(s.state))
+  // Filter based on selected states from chat
+  const filteredStateData = selectedStates.length > 0
+    ? stateData.filter((s) => selectedStates.includes(s.state))
     : stateData
 
-  const relevantFacilities = ngoInputs
-    ? facilities.filter((f) => ngoInputs.states.includes(f.state))
+  const relevantFacilities = selectedStates.length > 0
+    ? facilities.filter((f) => selectedStates.includes(f.state))
     : facilities
 
   const filteredFacilities = selectedState
@@ -77,13 +73,16 @@ export default function Home() {
     }
   }, [selectedState, relevantFacilities])
 
-  const handleIntakeSubmit = (inputs: NGOInputs) => {
-    setNgoInputs(inputs)
-    setAppStage("loading")
-  }
-
-  const handleLoadingComplete = () => {
-    setAppStage("output")
+  const handleShowMap = (states: string[]) => {
+    setSelectedStates(states)
+    // Calculate center based on selected states
+    const relevantStates = stateData.filter(s => states.includes(s.state))
+    if (relevantStates.length > 0) {
+      const avgLat = relevantStates.reduce((sum, s) => sum + s.latitude, 0) / relevantStates.length
+      const avgLng = relevantStates.reduce((sum, s) => sum + s.longitude, 0) / relevantStates.length
+      setMapCenter({ lat: avgLat, lng: avgLng, zoom: 6 })
+    }
+    setViewMode("map")
   }
 
   const handleRatingChange = (facilityId: string, recommend: boolean, tags: string[]) => {
@@ -93,28 +92,11 @@ export default function Home() {
     }))
   }
 
-  const handleStateSelect = (state: StateData) => {
-    setSelectedState(state.state)
-    setMapCenter({ lat: state.latitude, lng: state.longitude, zoom: 7 })
-    setViewMode("map")
-  }
-
-  const handleBackToDashboard = () => {
-    setViewMode("dashboard")
+  const handleBackToChat = () => {
+    setViewMode("chat")
     setSelectedState("")
     setSelectedFacility(null)
-    setMapCenter(null)
   }
-
-  // Calculate metrics for selected states
-  const totalFacilities = relevantFacilities.length || 0
-  const verifiedCount = relevantFacilities.filter((f) => f.trust_score > 0.7).length || 0
-  const gapsCount = relevantFacilities.filter((f) => f.trust_score < 0.4).length || 0
-  const citiesWithZeroCoverage = new Set(
-    relevantFacilities
-      .filter((f) => f.trust_score < 0.4)
-      .map((f) => f.city)
-  ).size
 
   // Show initial loading
   if (isLoading) {
@@ -125,67 +107,45 @@ export default function Home() {
     )
   }
 
-  // Intake Form
-  if (appStage === "intake") {
+  // Full screen chat
+  if (viewMode === "chat") {
     return (
       <div className="h-screen w-full max-w-[480px] mx-auto bg-white overflow-hidden">
-        <IntakeForm stateData={stateData} onSubmit={handleIntakeSubmit} />
-      </div>
-    )
-  }
-
-  // Loading Screen
-  if (appStage === "loading" && ngoInputs) {
-    return (
-      <div className="h-screen w-full max-w-[480px] mx-auto bg-white overflow-hidden">
-        <LoadingScreen
-          selectedStates={ngoInputs.states}
-          onComplete={handleLoadingComplete}
+        <FullScreenChat
+          facilities={facilities}
+          stateData={stateData}
+          onShowMap={handleShowMap}
         />
       </div>
     )
   }
 
-  // Output: Dashboard + Map
+  // Map view (after plan is shown)
   return (
     <div className="h-screen w-full max-w-[480px] mx-auto flex flex-col bg-white">
-      {viewMode === "dashboard" ? (
-        <Dashboard
+      <Header
+        facilities={relevantFacilities}
+        selectedState={selectedState}
+        onStateChange={setSelectedState}
+        onBackToDashboard={handleBackToChat}
+      />
+      <div className="flex-1 relative">
+        <FacilityMap
+          facilities={filteredFacilities}
+          selectedFacility={selectedFacility}
+          onSelectFacility={setSelectedFacility}
+          onResetMap={() => setSelectedFacility(null)}
+          initialCenter={mapCenter}
           stateData={filteredStateData}
-          totalFacilities={totalFacilities}
-          verifiedCount={verifiedCount}
-          gapsCount={gapsCount}
-          citiesWithZeroCoverage={citiesWithZeroCoverage}
-          onViewMap={() => setViewMode("map")}
-          onSelectState={handleStateSelect}
         />
-      ) : (
-        <>
-          <Header
-            facilities={relevantFacilities}
-            selectedState={selectedState}
-            onStateChange={setSelectedState}
-            onBackToDashboard={handleBackToDashboard}
-          />
-          <div className="flex-1 relative">
-            <FacilityMap
-              facilities={filteredFacilities}
-              selectedFacility={selectedFacility}
-              onSelectFacility={setSelectedFacility}
-              onResetMap={() => setSelectedFacility(null)}
-              initialCenter={mapCenter}
-              stateData={filteredStateData}
-            />
-          </div>
-          <BottomSheet
-            facility={selectedFacility}
-            onClose={() => setSelectedFacility(null)}
-            userRatings={userRatings}
-            onRatingChange={handleRatingChange}
-          />
-        </>
-      )}
-      <ChatPopup selectedFacility={selectedFacility} ngoInputs={ngoInputs} />
+      </div>
+      <BottomSheet
+        facility={selectedFacility}
+        onClose={() => setSelectedFacility(null)}
+        userRatings={userRatings}
+        onRatingChange={handleRatingChange}
+      />
+      <ChatPopup selectedFacility={selectedFacility} />
     </div>
   )
 }
