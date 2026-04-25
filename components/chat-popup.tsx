@@ -1,31 +1,86 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { MessageCircle, X, Send } from "lucide-react"
-import { useChat } from "@ai-sdk/react"
 
 const SUGGESTED_PROMPTS = [
   "Which states have worst coverage?",
   "Find verified facilities near Bihar",
 ]
 
+interface Message {
+  id: string
+  role: "user" | "assistant"
+  content: string
+}
+
 export function ChatPopup() {
   const [isOpen, setIsOpen] = useState(false)
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput, error } = useChat({
-    api: "/api/chat",
-  })
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isOpen])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input.trim(),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to get response")
+      }
+
+      const text = await response.text()
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: text,
+      }
+
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSuggestedPrompt = (prompt: string) => {
     setInput(prompt)
-  }
-
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    handleSubmit(e)
+    inputRef.current?.focus()
   }
 
   const renderMessageContent = (content: string) => {
-    // Convert phone numbers to clickable links
     const phoneRegex = /(\+91[-\s]?[\d\s-]{10,})/g
     const testRegex = /^\+91[-\s]?[\d\s-]{10,}$/
     const parts = content.split(phoneRegex)
@@ -72,10 +127,10 @@ export function ChatPopup() {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
                 <p className="font-medium">Connection Error</p>
-                <p className="text-xs mt-1">{error.message || "Failed to connect to AI. Please try again."}</p>
+                <p className="text-xs mt-1">{error}</p>
               </div>
             )}
-            {messages.length === 0 && (
+            {messages.length === 0 && !error && (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-3">How can I help you?</p>
                 <div className="flex flex-col gap-2">
@@ -121,19 +176,19 @@ export function ChatPopup() {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleFormSubmit} className="p-3 border-t flex-shrink-0">
+          <form onSubmit={handleSubmit} className="p-3 border-t flex-shrink-0">
             <div className="flex gap-2">
               <input
+                ref={inputRef}
                 type="text"
-                value={input ?? ""}
-                onChange={(e) => handleInputChange(e)}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask a question..."
-                autoFocus
                 className="flex-1 px-3 py-2 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-[#639922] focus:border-transparent bg-white"
               />
               <button
                 type="submit"
-                disabled={isLoading || !input?.trim()}
+                disabled={isLoading || !input.trim()}
                 className="w-10 h-10 rounded-full bg-[#639922] text-white flex items-center justify-center hover:bg-[#537a1c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="Send message"
               >
