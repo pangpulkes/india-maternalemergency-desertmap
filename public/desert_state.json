@@ -1,0 +1,101 @@
+[
+  {
+    "state": "Bihar",
+    "total_facilities": 156,
+    "verified": 8,
+    "gaps": 142,
+    "gap_rate": 0.91,
+    "latitude": 25.0961,
+    "longitude": 85.3131
+  },
+  {
+    "state": "Uttar Pradesh",
+    "total_facilities": 245,
+    "verified": 18,
+    "gaps": 218,
+    "gap_rate": 0.89,
+    "latitude": 26.8467,
+    "longitude": 80.9462
+  },
+  {
+    "state": "Jharkhand",
+    "total_facilities": 89,
+    "verified": 7,
+    "gaps": 78,
+    "gap_rate": 0.88,
+    "latitude": 23.6102,
+    "longitude": 85.2799
+  },
+  {
+    "state": "Madhya Pradesh",
+    "total_facilities": 134,
+    "verified": 12,
+    "gaps": 115,
+    "gap_rate": 0.86,
+    "latitude": 22.9734,
+    "longitude": 78.6569
+  },
+  {
+    "state": "Rajasthan",
+    "total_facilities": 118,
+    "verified": 11,
+    "gaps": 99,
+    "gap_rate": 0.84,
+    "latitude": 27.0238,
+    "longitude": 74.2179
+  },
+  {
+    "state": "Odisha",
+    "total_facilities": 87,
+    "verified": 9,
+    "gaps": 72,
+    "gap_rate": 0.83,
+    "latitude": 20.9517,
+    "longitude": 85.0985
+  },
+  {
+    "state": "Chhattisgarh",
+    "total_facilities": 65,
+    "verified": 7,
+    "gaps": 53,
+    "gap_rate": 0.82,
+    "latitude": 21.2787,
+    "longitude": 81.8661
+  },
+  {
+    "state": "Assam",
+    "total_facilities": 58,
+    "verified": 7,
+    "gaps": 46,
+    "gap_rate": 0.79,
+    "latitude": 26.2006,
+    "longitude": 92.9376
+  },
+  {
+    "state": "West Bengal",
+    "total_facilities": 92,
+    "verified": 12,
+    "gaps": 71,
+    "gap_rate": 0.77,
+    "latitude": 22.9868,
+    "longitude": 87.8550
+  },
+  {
+    "state": "Andhra Pradesh",
+    "total_facilities": 76,
+    "verified": 11,
+    "gaps": 57,
+    "gap_rate": 0.75,
+    "latitude": 15.9129,
+    "longitude": 79.7400
+  },
+  {
+    "state": "Telangana",
+    "total_facilities": 60,
+    "verified": 17,
+    "gaps": 38,
+    "gap_rate": 0.63,
+    "latitude": 18.1124,
+    "longitude": 79.0193
+  }
+]

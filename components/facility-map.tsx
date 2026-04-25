@@ -16,21 +16,34 @@ interface FacilityMapProps {
   selectedFacility: Facility | null
   onSelectFacility: (facility: Facility) => void
   onResetMap?: () => void
+  initialCenter?: { lat: number; lng: number; zoom: number } | null
 }
 
 function MapUpdater({ 
   selectedFacility, 
   shouldReset, 
-  onResetComplete 
+  onResetComplete,
+  initialCenter,
 }: { 
   selectedFacility: Facility | null
   shouldReset: boolean
-  onResetComplete: () => void 
+  onResetComplete: () => void
+  initialCenter?: { lat: number; lng: number; zoom: number } | null
 }) {
   const map = useMap()
   const prevSelectedRef = useRef<Facility | null>(null)
+  const initialCenterApplied = useRef(false)
 
   useEffect(() => {
+    // Apply initial center on first mount if provided
+    if (initialCenter && !initialCenterApplied.current) {
+      map.flyTo([initialCenter.lat, initialCenter.lng], initialCenter.zoom, {
+        duration: 0.5,
+      })
+      initialCenterApplied.current = true
+      return
+    }
+
     if (shouldReset) {
       map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, {
         duration: 0.5,
@@ -45,12 +58,12 @@ function MapUpdater({
       })
       prevSelectedRef.current = selectedFacility
     }
-  }, [selectedFacility, shouldReset, map, onResetComplete])
+  }, [selectedFacility, shouldReset, map, onResetComplete, initialCenter])
 
   return null
 }
 
-export function FacilityMap({ facilities, selectedFacility, onSelectFacility, onResetMap }: FacilityMapProps) {
+export function FacilityMap({ facilities, selectedFacility, onSelectFacility, onResetMap, initialCenter }: FacilityMapProps) {
   const [shouldReset, setShouldReset] = useState(false)
 
   const getColor = (score: number) => {
@@ -90,6 +103,7 @@ export function FacilityMap({ facilities, selectedFacility, onSelectFacility, on
           selectedFacility={selectedFacility} 
           shouldReset={shouldReset}
           onResetComplete={() => setShouldReset(false)}
+          initialCenter={initialCenter}
         />
         {facilities.map((facility) => {
           const isSelected = selectedFacility?.name === facility.name && selectedFacility?.city === facility.city

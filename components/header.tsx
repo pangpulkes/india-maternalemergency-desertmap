@@ -1,16 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Search, X } from "lucide-react"
+import { Search, X, ArrowLeft } from "lucide-react"
 import type { Facility } from "@/lib/types"
 
 interface HeaderProps {
   facilities: Facility[]
   selectedState: string
   onStateChange: (state: string) => void
+  onBackToDashboard?: () => void
 }
 
-export function Header({ facilities, selectedState, onStateChange }: HeaderProps) {
+export function Header({ facilities, selectedState, onStateChange, onBackToDashboard }: HeaderProps) {
   const [searchInput, setSearchInput] = useState("")
   const [showDropdown, setShowDropdown] = useState(false)
 
@@ -51,9 +52,20 @@ export function Header({ facilities, selectedState, onStateChange }: HeaderProps
   return (
     <header className="bg-[#1a2e1a] text-white px-4 py-3 flex flex-col gap-2">
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-semibold leading-tight">Maternal Emergency Desert Map</h1>
-          <p className="text-xs text-white/70">India · {facilities.length} facilities audited</p>
+        <div className="flex items-start gap-2">
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="mt-0.5 p-1.5 -ml-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          <div>
+            <h1 className="text-lg font-semibold leading-tight">Maternal Emergency Desert Map</h1>
+            <p className="text-xs text-white/70">India · {facilities.length} facilities audited</p>
+          </div>
         </div>
         <div className="relative w-40">
           <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-lg px-3 py-1.5">

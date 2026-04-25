@@ -11,3 +11,13 @@ export interface Facility {
   reasoning: string
   phone: string | null
 }
+
+export interface StateData {
+  state: string
+  total_facilities: number
+  verified: number
+  gaps: number
+  gap_rate: number
+  latitude: number
+  longitude: number
+}
