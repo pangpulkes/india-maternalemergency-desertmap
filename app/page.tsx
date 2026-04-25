@@ -39,10 +39,20 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
 
-  const { messages, input, setInput: setInputRaw, handleSubmit, isLoading } = useChat({
+  const [inputValue, setInputValue] = useState("")
+  const { messages, input, handleSubmit: handleSubmitRaw, isLoading } = useChat({
     api: "/api/chat",
     body: {
-      conversationalMode: true,
+      selectedFacility: selectedFacility ? {
+        name: selectedFacility.name,
+        city: selectedFacility.city,
+        state: selectedFacility.state,
+        trust_score: selectedFacility.trust_score,
+        evidence: selectedFacility.evidence,
+        red_flags: selectedFacility.red_flags,
+        phone: selectedFacility.phone,
+        has_emergency_ob: selectedFacility.has_emergency_ob,
+      } : null,
       extractedStates,
     },
     initialMessages: [
@@ -58,11 +68,18 @@ export default function Home() {
     onFinish: (message) => {
       setIsSearching(false)
       parseRecommendationsFromMessage(message.content)
+      setInputValue("")
     },
     onToolCall: ({ toolCall }) => {
       if (toolCall.toolName === "web_search") {
         setIsSearching(true)
       }
+    },
+  })
+
+  // Use local state for input to avoid useChat hook issues
+  const setInput = setInputValue
+  const displayInput = inputValue || input
     },
   })
 
@@ -159,8 +176,15 @@ export default function Home() {
 
   const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!input?.trim() || isLoading) return
-    handleSubmit(e)
+    if (!inputValue?.trim() || isLoading) return
+    
+    // Submit with current input value
+    const form = e.currentTarget
+    const input = form.querySelector("input") as HTMLInputElement
+    if (input) input.value = inputValue
+    
+    handleSubmitRaw(e)
+    setInputValue("")
   }
 
   const handleDownloadBrief = () => {
@@ -297,8 +321,8 @@ export default function Home() {
         <div className="flex-1 flex overflow-hidden">
           <ChatPanel
             messages={messages}
-            input={input ?? ""}
-            setInput={setInput}
+            input={inputValue}
+            setInput={setInputValue}
             onSubmit={onFormSubmit}
             isLoading={isLoading}
             isSearching={isSearching}

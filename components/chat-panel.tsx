@@ -22,6 +22,13 @@ const INITIAL_MESSAGE = `Hi, I'm your maternal emergency planning agent. I've au
 
 Tell me about your organization — which states you operate in, your available budget, what types of interventions you can fund, and your timeline. I'll generate a tailored intervention plan.`
 
+const SUGGESTED_PROMPTS = [
+  "We work in Bihar and UP with a ₹2 crore budget",
+  "Operating in rural Assam, looking to build capacity",
+  "Need to establish referral networks in Maharashtra",
+  "Can fund equipment and staff training",
+]
+
 export function ChatPanel({
   messages,
   input,
@@ -32,6 +39,11 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleSuggestedPrompt = (prompt: string) => {
+    setInput(prompt)
+    inputRef.current?.focus()
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -72,8 +84,26 @@ export function ChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col">
+        {messages.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center space-y-4 text-center">
+            <p className="text-sm text-gray-600 font-medium px-4">
+              Tell me about your organization
+            </p>
+            <div className="flex flex-col gap-2 w-full px-2">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => handleSuggestedPrompt(prompt)}
+                  className="px-3 py-2 text-xs text-left bg-gray-50 hover:bg-[#639922]/10 border border-gray-200 hover:border-[#639922] rounded-lg transition-colors text-gray-700 hover:text-gray-900"
+                >
+                  "{prompt}"
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
@@ -88,7 +118,8 @@ export function ChatPanel({
               {message.role === "user" ? message.content : renderMessageContent(message.content)}
             </div>
           </div>
-        ))}
+        ))
+        )}
 
         {/* Web Search Indicator */}
         {isSearching && (
