@@ -91,7 +91,7 @@ export default function Home() {
         userRatings={userRatings}
         onRatingChange={handleRatingChange}
       />
-      <ChatPopup />
+      <ChatPopup selectedFacility={selectedFacility} />
     </div>
   )
 }

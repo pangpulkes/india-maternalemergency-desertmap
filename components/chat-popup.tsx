@@ -2,10 +2,17 @@
 
 import { useState, useRef, useEffect } from "react"
 import { MessageCircle, X, Send } from "lucide-react"
+import type { Facility } from "@/lib/types"
 
 const SUGGESTED_PROMPTS = [
   "Which states have worst coverage?",
   "Find verified facilities near Bihar",
+]
+
+const FACILITY_PROMPTS = [
+  "Is this facility trustworthy?",
+  "What are the concerns here?",
+  "Are there better alternatives nearby?",
 ]
 
 interface Message {
@@ -14,7 +21,11 @@ interface Message {
   content: string
 }
 
-export function ChatPopup() {
+interface ChatPopupProps {
+  selectedFacility?: Facility | null
+}
+
+export function ChatPopup({ selectedFacility }: ChatPopupProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -52,6 +63,16 @@ export function ChatPopup() {
             role: m.role,
             content: m.content,
           })),
+          selectedFacility: selectedFacility ? {
+            name: selectedFacility.name,
+            city: selectedFacility.city,
+            state: selectedFacility.state,
+            trust_score: selectedFacility.trust_score,
+            evidence: selectedFacility.evidence,
+            red_flags: selectedFacility.red_flags,
+            phone: selectedFacility.phone,
+            has_emergency_ob: selectedFacility.has_emergency_ob,
+          } : null,
         }),
       })
 
@@ -132,18 +153,42 @@ export function ChatPopup() {
             )}
             {messages.length === 0 && !error && (
               <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-3">How can I help you?</p>
-                <div className="flex flex-col gap-2">
-                  {SUGGESTED_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => handleSuggestedPrompt(prompt)}
-                      className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+                {selectedFacility ? (
+                  <>
+                    <div className="bg-[#639922]/10 rounded-lg p-2 mb-3 text-left">
+                      <p className="text-xs font-medium text-[#639922]">Currently viewing:</p>
+                      <p className="text-sm font-semibold text-gray-800">{selectedFacility.name}</p>
+                      <p className="text-xs text-gray-500">{selectedFacility.city}, {selectedFacility.state}</p>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-3">Ask about this facility:</p>
+                    <div className="flex flex-col gap-2">
+                      {FACILITY_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => handleSuggestedPrompt(prompt)}
+                          className="px-3 py-2 text-xs bg-[#639922]/10 hover:bg-[#639922]/20 rounded-full text-[#639922] transition-colors"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500 mb-3">How can I help you?</p>
+                    <div className="flex flex-col gap-2">
+                      {SUGGESTED_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => handleSuggestedPrompt(prompt)}
+                          className="px-3 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
             {messages.map((message) => (
