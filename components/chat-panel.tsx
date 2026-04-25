@@ -16,7 +16,6 @@ interface ChatPanelProps {
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
   isLoading: boolean
   isSearching: boolean
-  hideHeader?: boolean
 }
 
 const INITIAL_MESSAGE = `Hi, I'm your maternal emergency planning agent. I've audited 1,180 maternal health facilities across India and identified critical coverage gaps.
@@ -30,7 +29,6 @@ export function ChatPanel({
   onSubmit,
   isLoading,
   isSearching,
-  hideHeader = false,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -66,14 +64,12 @@ export function ChatPanel({
   }
 
   return (
-    <div className={`bg-white flex flex-col h-full ${hideHeader ? "flex-1" : "w-80 border-r border-gray-200"}`}>
+    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Chat Header */}
-      {!hideHeader && (
-        <div className="px-4 py-3 border-b border-gray-200 bg-[#1a2e1a] flex-shrink-0">
-          <h2 className="font-semibold text-white text-sm">Resource Planning Agent</h2>
-          <p className="text-xs text-white/70">AI-powered allocation guidance</p>
-        </div>
-      )}
+      <div className="px-4 py-3 border-b border-gray-200 bg-[#1a2e1a] flex-shrink-0">
+        <h2 className="font-semibold text-white text-sm">Resource Planning Agent</h2>
+        <p className="text-xs text-white/70">AI-powered allocation guidance</p>
+      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
