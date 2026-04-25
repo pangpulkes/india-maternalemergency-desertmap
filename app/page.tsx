@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { useChat } from "@ai-sdk/react"
-import { Share2, Building2, CheckCircle, AlertTriangle } from "lucide-react"
+import { Share2, Building2, CheckCircle, AlertTriangle, MessageSquare, Map, ChevronLeft, ChevronRight } from "lucide-react"
 import { ChatPanel } from "@/components/chat-panel"
 import { OutputPanel } from "@/components/output-panel"
 import type { Facility, StateData } from "@/lib/types"
@@ -25,11 +25,14 @@ interface Recommendation {
   priority: number
 }
 
+type AppMode = "landing" | "planning" | "explore"
+
 const INITIAL_MESSAGE = `Hi, I'm your maternal emergency planning agent. I've audited 1,180 maternal health facilities across India and identified critical coverage gaps.
 
 Tell me about your organization — which states you operate in, your available budget, what types of interventions you can fund, and your timeline. I'll generate a tailored intervention plan.`
 
 export default function Home() {
+  const [mode, setMode] = useState<AppMode>("landing")
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [stateData, setStateData] = useState<StateData[]>([])
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null)
@@ -38,6 +41,7 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false)
 
   const { messages, input, setInput, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
@@ -57,7 +61,6 @@ export default function Home() {
     },
     onFinish: (message) => {
       setIsSearching(false)
-      // Parse recommendations from the response
       parseRecommendationsFromMessage(message.content)
     },
     onToolCall: ({ toolCall }) => {
@@ -100,7 +103,6 @@ export default function Home() {
     
     if (foundStates.length > 0 && JSON.stringify(foundStates) !== JSON.stringify(extractedStates)) {
       setExtractedStates(foundStates)
-      // Update map center based on extracted states
       const relevantStates = stateData.filter(s => foundStates.includes(s.state))
       if (relevantStates.length > 0) {
         const avgLat = relevantStates.reduce((sum, s) => sum + s.latitude, 0) / relevantStates.length
@@ -110,19 +112,16 @@ export default function Home() {
     }
   }, [messages, stateData, extractedStates])
 
-  // Parse recommendations from AI response
   const parseRecommendationsFromMessage = (content: string) => {
     if (!content.includes("Recommended Site") && !content.includes("Top 3") && !content.includes("Intervention Plan")) {
       return
     }
 
-    // Find facilities mentioned in the response
     const newRecommendations: Recommendation[] = []
     const relevantFacilities = extractedStates.length > 0
       ? facilities.filter(f => extractedStates.includes(f.state))
       : facilities
 
-    // Extract intervention types from content
     const interventionTypes = [
       "Equipment upgrade",
       "Staff training",
@@ -133,9 +132,8 @@ export default function Home() {
       "Capacity building",
     ]
 
-    // Find top facilities based on trust score and match with content
     const sortedFacilities = [...relevantFacilities]
-      .filter(f => f.trust_score < 0.7) // Focus on facilities that need intervention
+      .filter(f => f.trust_score < 0.7)
       .sort((a, b) => b.trust_score - a.trust_score)
       .slice(0, 3)
 
@@ -224,13 +222,11 @@ export default function Home() {
         // User cancelled or error
       }
     } else {
-      // Fallback: copy to clipboard
       await navigator.clipboard.writeText(window.location.href)
       alert("Link copied to clipboard")
     }
   }
 
-  // Filter data based on extracted states
   const filteredStateData = extractedStates.length > 0
     ? stateData.filter(s => extractedStates.includes(s.state))
     : stateData
@@ -239,7 +235,6 @@ export default function Home() {
     ? facilities.filter(f => extractedStates.includes(f.state))
     : facilities
 
-  // Calculate metrics
   const totalAudited = facilities.length || 1180
   const verifiedCount = facilities.filter(f => f.trust_score > 0.7).length || 129
   const gapsCount = facilities.filter(f => f.trust_score < 0.4).length || 969
@@ -252,16 +247,215 @@ export default function Home() {
     )
   }
 
+  // Landing Page
+  if (mode === "landing") {
+    return (
+      <div className="h-screen w-full min-w-[1200px] flex flex-col bg-gray-100">
+        {/* Header */}
+        <header className="bg-[#1a2e1a] text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h1 className="text-xl font-semibold">Maternal Emergency Desert Map</h1>
+            <p className="text-sm text-white/70">AI-powered resource allocation for NGO planners</p>
+          </div>
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-white/70" />
+              <span className="text-sm">
+                <span className="font-semibold">{totalAudited.toLocaleString()}</span>
+                <span className="text-white/70 ml-1">audited</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span className="text-sm">
+                <span className="font-semibold text-green-400">{verifiedCount}</span>
+                <span className="text-white/70 ml-1">verified</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <span className="text-sm">
+                <span className="font-semibold text-red-400">{gapsCount}</span>
+                <span className="text-white/70 ml-1">gaps</span>
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* Landing Content */}
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-4xl w-full">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Where should your organization invest next?
+              </h2>
+              <p className="text-lg text-gray-600">
+                Use AI-powered audit data to identify the highest-impact maternal healthcare interventions across India.
+              </p>
+            </div>
+
+            {/* Two Entry Cards */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Plan an Intervention */}
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <div className="bg-[#1a2e1a] px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                      <MessageSquare className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">Plan an Intervention</h3>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Tell the agent your goals, budget and constraints — get a tailored action plan with top recommended sites, intervention types, and population impact estimates.
+                  </p>
+                  <button
+                    onClick={() => setMode("planning")}
+                    className="w-full py-3 px-4 bg-[#639922] hover:bg-[#537a1c] text-white font-medium rounded-lg transition-colors"
+                  >
+                    Start Planning
+                  </button>
+                </div>
+              </div>
+
+              {/* Explore the Data */}
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <div className="bg-[#1a2e1a] px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                      <Map className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">Explore the Data</h3>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Browse coverage gaps, state comparisons and facility details across India. View the heatmap, filter by region, and dive into the audit data.
+                  </p>
+                  <button
+                    onClick={() => setMode("explore")}
+                    className="w-full py-3 px-4 bg-[#639922] hover:bg-[#537a1c] text-white font-medium rounded-lg transition-colors"
+                  >
+                    View Heatmap
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Planning Mode (Chat-driven)
+  if (mode === "planning") {
+    return (
+      <div className="h-screen w-full min-w-[1200px] flex flex-col bg-gray-100">
+        {/* Full-width Header */}
+        <header className="bg-[#1a2e1a] text-white px-6 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setMode("landing")}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="Back to home"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-lg font-semibold">Maternal Emergency Desert Map</h1>
+              <p className="text-xs text-white/70">AI-powered resource allocation for NGO planners</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-white/70" />
+              <span className="text-sm">
+                <span className="font-semibold">{totalAudited.toLocaleString()}</span>
+                <span className="text-white/70 ml-1">audited</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span className="text-sm">
+                <span className="font-semibold text-green-400">{verifiedCount}</span>
+                <span className="text-white/70 ml-1">verified</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <span className="text-sm">
+                <span className="font-semibold text-red-400">{gapsCount}</span>
+                <span className="text-white/70 ml-1">gaps</span>
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSharePlan}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Share2 className="w-4 h-4" />
+            Share Plan
+          </button>
+        </header>
+
+        {/* Three-column Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          <ChatPanel
+            messages={messages}
+            input={input ?? ""}
+            setInput={setInput}
+            onSubmit={onFormSubmit}
+            isLoading={isLoading}
+            isSearching={isSearching}
+          />
+
+          <div className="flex-1 relative">
+            <FacilityMap
+              facilities={filteredFacilities}
+              selectedFacility={selectedFacility}
+              onSelectFacility={setSelectedFacility}
+              onResetMap={() => setSelectedFacility(null)}
+              initialCenter={mapCenter}
+              stateData={filteredStateData}
+            />
+          </div>
+
+          <OutputPanel
+            recommendations={recommendations}
+            selectedFacility={selectedFacility}
+            onSelectFacility={setSelectedFacility}
+            onDownloadBrief={handleDownloadBrief}
+            extractedStates={extractedStates}
+            stateData={stateData}
+            onSelectState={handleSelectState}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // Explore Mode (Map-first with collapsible chat)
   return (
     <div className="h-screen w-full min-w-[1200px] flex flex-col bg-gray-100">
       {/* Full-width Header */}
       <header className="bg-[#1a2e1a] text-white px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="text-lg font-semibold">Maternal Emergency Desert Map</h1>
-          <p className="text-xs text-white/70">AI-powered resource allocation for NGO planners</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setMode("landing")}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="Back to home"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-lg font-semibold">Maternal Emergency Desert Map</h1>
+            <p className="text-xs text-white/70">Explore coverage gaps across India</p>
+          </div>
         </div>
 
-        {/* Metrics */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-white/70" />
@@ -286,7 +480,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Share Button */}
         <button
           onClick={handleSharePlan}
           className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
@@ -296,17 +489,53 @@ export default function Home() {
         </button>
       </header>
 
-      {/* Three-column Layout */}
+      {/* Two/Three-column Layout with collapsible chat */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Column - Chat */}
-        <ChatPanel
-          messages={messages}
-          input={input ?? ""}
-          setInput={setInput}
-          onSubmit={onFormSubmit}
-          isLoading={isLoading}
-          isSearching={isSearching}
-        />
+        {/* Collapsible Chat Sidebar */}
+        <div 
+          className={`flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 flex flex-col ${
+            isChatCollapsed ? "w-12" : "w-80"
+          }`}
+        >
+          {isChatCollapsed ? (
+            <button
+              onClick={() => setIsChatCollapsed(false)}
+              className="flex-1 flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              title="Open chat"
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span className="text-xs font-medium writing-mode-vertical" style={{ writingMode: "vertical-rl" }}>
+                Planning Agent
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <>
+              <div className="bg-[#1a2e1a] text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="font-semibold text-sm">Resource Planning Agent</h3>
+                  <p className="text-xs text-white/70">Ask me anything</p>
+                </div>
+                <button
+                  onClick={() => setIsChatCollapsed(true)}
+                  className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                  title="Collapse chat"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+              <ChatPanel
+                messages={messages}
+                input={input ?? ""}
+                setInput={setInput}
+                onSubmit={onFormSubmit}
+                isLoading={isLoading}
+                isSearching={isSearching}
+                hideHeader
+              />
+            </>
+          )}
+        </div>
 
         {/* Center Column - Map */}
         <div className="flex-1 relative">
