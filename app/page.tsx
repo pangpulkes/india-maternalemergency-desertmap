@@ -39,8 +39,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
 
-  const [inputValue, setInputValue] = useState("")
-  const { messages, input, handleSubmit: handleSubmitRaw, isLoading } = useChat({
+  const { messages, input, setInput, handleSubmit: handleSubmitRaw, isLoading } = useChat({
     api: "/api/chat",
     body: {
       selectedFacility: selectedFacility ? {
@@ -68,7 +67,6 @@ export default function Home() {
     onFinish: (message) => {
       setIsSearching(false)
       parseRecommendationsFromMessage(message.content)
-      setInputValue("")
     },
     onToolCall: ({ toolCall }) => {
       if (toolCall.toolName === "web_search") {
@@ -76,19 +74,6 @@ export default function Home() {
       }
     },
   })
-
-  // Use local state for input to avoid useChat hook issues
-  const setInput = setInputValue
-  const displayInput = inputValue || input
-    },
-  })
-
-  // Safe wrapper for setInput
-  const setInput = (value: string) => {
-    if (typeof setInputRaw === "function") {
-      setInputRaw(value)
-    }
-  }
 
   // Load initial data
   useEffect(() => {
@@ -176,15 +161,8 @@ export default function Home() {
 
   const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!inputValue?.trim() || isLoading) return
-    
-    // Submit with current input value
-    const form = e.currentTarget
-    const input = form.querySelector("input") as HTMLInputElement
-    if (input) input.value = inputValue
-    
+    if (!input.trim() || isLoading) return
     handleSubmitRaw(e)
-    setInputValue("")
   }
 
   const handleDownloadBrief = () => {
@@ -321,8 +299,8 @@ export default function Home() {
         <div className="flex-1 flex overflow-hidden">
           <ChatPanel
             messages={messages}
-            input={inputValue}
-            setInput={setInputValue}
+            input={input}
+            setInput={setInput}
             onSubmit={onFormSubmit}
             isLoading={isLoading}
             isSearching={isSearching}
