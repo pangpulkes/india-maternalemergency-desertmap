@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { useChat } from "@ai-sdk/react"
-import { Share2, Building2, CheckCircle, AlertTriangle, MessageSquare, Map, ChevronLeft, ChevronRight } from "lucide-react"
+import { Share2, Building2, CheckCircle, AlertTriangle, MessageSquare, Map as MapIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { ChatPanel } from "@/components/chat-panel"
 import { OutputPanel } from "@/components/output-panel"
 import type { Facility, StateData } from "@/lib/types"
@@ -43,7 +43,7 @@ export default function Home() {
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
   const [isChatCollapsed, setIsChatCollapsed] = useState(false)
 
-  const { messages, input, setInput, handleSubmit, isLoading } = useChat({
+  const { messages, input, setInput: setInputRaw, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
     body: {
       conversationalMode: true,
@@ -69,6 +69,13 @@ export default function Home() {
       }
     },
   })
+
+  // Safe wrapper for setInput
+  const setInput = (value: string) => {
+    if (typeof setInputRaw === "function") {
+      setInputRaw(value)
+    }
+  }
 
   // Load initial data
   useEffect(() => {
@@ -324,7 +331,7 @@ export default function Home() {
                 <div className="bg-[#1a2e1a] px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                      <Map className="w-5 h-5 text-white" />
+                      <MapIcon className="w-5 h-5 text-white" />
                     </div>
                     <h3 className="text-lg font-semibold text-white">Explore the Data</h3>
                   </div>
