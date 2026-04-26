@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react"
 import { Send, Search } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 
 interface Message {
   id: string
@@ -91,7 +92,7 @@ export function ChatPanel({
             >
               {message.role === "user"
                 ? message.content
-                : renderMessageContent(message.content)}
+                : <ReactMarkdown className="prose prose-sm max-w-none text-gray-800">{message.content}</ReactMarkdown>}
             </div>
 
 
