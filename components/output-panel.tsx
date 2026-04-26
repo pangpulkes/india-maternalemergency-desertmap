@@ -30,7 +30,7 @@ export function OutputPanel({
   stateData,
   onSelectState,
 }: OutputPanelProps) {
-  const [activeTab, setActiveTab] = useState<"states" | "recommendations" | "details">(
+  const [activeTab, setActiveTab] = useState<"states" | "details">(
     selectedFacility ? "details" : "states"
   )
   const [sortBy, setSortBy] = useState<"distance" | "gap_rate">("distance")
@@ -85,14 +85,7 @@ export function OutputPanel({
       <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-gray-900">Output</h2>
-          <button
-            onClick={onDownloadBrief}
-            disabled={recommendations.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#1a2e1a] text-white rounded-lg hover:bg-[#2a3e2a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download Brief
-          </button>
+
         </div>
         {extractedStates.length > 0 && (
           <p className="text-xs text-gray-500">
@@ -105,31 +98,20 @@ export function OutputPanel({
       <div className="flex border-b border-gray-200 flex-shrink-0">
         <button
           onClick={() => setActiveTab("states")}
-          className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${
-            activeTab === "states"
+          className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${activeTab === "states"
               ? "text-[#639922] border-b-2 border-[#639922]"
               : "text-gray-500 hover:text-gray-700"
-          }`}
+            }`}
         >
           Priority States
         </button>
-        <button
-          onClick={() => setActiveTab("recommendations")}
-          className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${
-            activeTab === "recommendations"
-              ? "text-[#639922] border-b-2 border-[#639922]"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Sites
-        </button>
+
         <button
           onClick={() => setActiveTab("details")}
-          className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${
-            activeTab === "details"
+          className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${activeTab === "details"
               ? "text-[#639922] border-b-2 border-[#639922]"
               : "text-gray-500 hover:text-gray-700"
-          }`}
+            }`}
         >
           Details
         </button>
@@ -147,21 +129,19 @@ export function OutputPanel({
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                 <button
                   onClick={() => setSortBy("distance")}
-                  className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
-                    sortBy === "distance"
+                  className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${sortBy === "distance"
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-500 hover:text-gray-700"
-                  }`}
+                    }`}
                 >
                   By Distance
                 </button>
                 <button
                   onClick={() => setSortBy("gap_rate")}
-                  className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
-                    sortBy === "gap_rate"
+                  className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${sortBy === "gap_rate"
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-500 hover:text-gray-700"
-                  }`}
+                    }`}
                 >
                   By Gap Rate
                 </button>
@@ -175,13 +155,13 @@ export function OutputPanel({
                 const severityColor = state.gap_rate > 0.85
                   ? "bg-red-500"
                   : state.gap_rate > 0.75
-                  ? "bg-orange-500"
-                  : "bg-yellow-500"
+                    ? "bg-orange-500"
+                    : "bg-yellow-500"
                 const severityLabel = state.gap_rate > 0.85
                   ? "CRITICAL"
                   : state.gap_rate > 0.75
-                  ? "SEVERE"
-                  : "UNDERSERVED"
+                    ? "SEVERE"
+                    : "UNDERSERVED"
 
                 return (
                   <button
@@ -241,72 +221,6 @@ export function OutputPanel({
                 )
               })}
             </div>
-          </div>
-        ) : activeTab === "recommendations" ? (
-          <div className="p-4">
-            {recommendations.length === 0 ? (
-              <div className="text-center py-8">
-                <Building2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500 mb-1">No recommendations yet</p>
-                <p className="text-xs text-gray-400">
-                  Tell the agent about your organization to receive tailored intervention recommendations.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                  Top {recommendations.length} Recommended Sites
-                </p>
-                {recommendations.map((rec, index) => (
-                  <button
-                    key={`${rec.facility.name}-${index}`}
-                    onClick={() => {
-                      onSelectFacility(rec.facility)
-                      setActiveTab("details")
-                    }}
-                    className={`w-full text-left p-3 rounded-lg border transition-all hover:shadow-md ${
-                      selectedFacility?.name === rec.facility.name
-                        ? "border-[#639922] bg-[#639922]/5"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-[#1a2e1a] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                            {index + 1}
-                          </span>
-                          <h4 className="font-medium text-sm text-gray-900 truncate">
-                            {rec.facility.name}
-                          </h4>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-0.5 ml-7">
-                          {rec.facility.city}, {rec.facility.state}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    </div>
-                    <div className="ml-7 space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium ${getTrustColor(rec.facility.trust_score)}`}>
-                          {Math.round(rec.facility.trust_score * 100)}% trust
-                        </span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium text-white ${getTrustBg(rec.facility.trust_score)}`}>
-                          {getTrustLabel(rec.facility.trust_score)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600">
-                        <span className="font-medium">Intervention:</span> {rec.interventionType}
-                      </p>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Users className="w-3 h-3" />
-                        <span>{rec.populationImpact}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         ) : (
           <div className="p-4">

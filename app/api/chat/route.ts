@@ -85,7 +85,7 @@ export async function POST(req: Request) {
         const stateData = await stateRes.json()
         // Only send top 20 states by gap rate to stay within token limits
         const topStates = stateData
-          .sort((a: any, b: any) => b.gap_rate - a.gap_rate)
+          .sort((a: any, b: any) => (b.critical_gaps * b.gap_rate) - (a.critical_gaps * a.gap_rate))
           .slice(0, 20)
         databricksContext = `Real audited facility data from Databricks (${stateData.length} states total, showing top 20 by gap rate): ${JSON.stringify(topStates)}`
       }
@@ -94,12 +94,34 @@ export async function POST(req: Request) {
     }
   }
 
+  // Also fetch upgradeable facilities for specific recommendations
+  let upgradeableContext = ""
+  try {
+    const upgradeRes = await fetch(
+      `https://${process.env.DATABRICKS_HOST}/api/2.0/fs/files/Volumes/workspace/default/globalaihackathon/upgradeable_facilities.json`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.DATABRICKS_TOKEN}`
+        }
+      }
+    )
+    if (upgradeRes.ok) {
+      const upgradeData = await upgradeRes.json()
+      upgradeableContext = `Specific upgradeable facilities (trust score 0.4-0.7, intervention ready): ${JSON.stringify(upgradeData.slice(0, 30))}`
+    }
+  } catch (err) {
+    console.error('Upgradeable fetch failed:', err)
+  }
+
   const systemPrompt = {
     role: "system",
     content: `You are a maternal emergency planning agent for NGO planners in India. You have audited 1,180 maternal health facilities across India using AI-powered trust scoring on the Databricks platform.
 
 Live facility intelligence from Databricks:
 ${databricksContext}
+
+Specific upgradeable facilities ready for intervention:
+${upgradeableContext}
 
 You have access to a web search tool. Use it to supplement the Databricks data when you need:
 - Current maternal mortality rates for specific districts or states
@@ -112,7 +134,8 @@ Rules:
 2. Use web search to find real costs — never invent numbers
 3. Always explain WHY each facility was chosen
 4. When you search, tell the user what you are looking for and why
-5. End with a total budget breakdown and one immediate next action`
+5. End with a total budget breakdown and one immediate next action
+6. The web search results will contain real cost data — you MUST use those specific numbers in your budget breakdown, not estimates. If search returns a cost figure, cite it with the source.`
   }
 
   // First Groq call with tools
@@ -126,7 +149,7 @@ Rules:
     },
     // First Groq call — use tool-use model
     body: JSON.stringify({
-      model: 'llama3-groq-70b-8192-tool-use-preview',
+      model: 'llama-3.3-70b-versatile',
       messages: augmentedMessages,
       tools: TOOLS,
       tool_choice: "auto",
@@ -152,9 +175,12 @@ Rules:
         const args = JSON.parse(toolCall.function.arguments)
         const result = await runTavilySearch(args.query)
         return {
+
           role: "tool",
           tool_call_id: toolCall.id,
+          name: toolCall.function.name,
           content: result
+
         }
       })
     )

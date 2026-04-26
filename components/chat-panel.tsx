@@ -92,7 +92,9 @@ export function ChatPanel({
             >
               {message.role === "user"
                 ? message.content
-                : <ReactMarkdown className="prose prose-sm max-w-none text-gray-800">{message.content}</ReactMarkdown>}
+                : <ReactMarkdown className="prose prose-sm max-w-none text-gray-800">
+                  {message.content.replace(/\{"query":.*?"reason":.*?\}/gs, '🔍 *Searching web...*')}
+                </ReactMarkdown>}
             </div>
 
 
