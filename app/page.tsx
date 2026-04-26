@@ -350,7 +350,20 @@ export default function Home() {
           }}
         />
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative flex flex-col">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-72">
+            <input
+              type="text"
+              placeholder="Search facility by name..."
+              className="w-full px-4 py-2 text-sm bg-white rounded-lg shadow-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#639922]"
+              onChange={(e) => {
+                const query = e.target.value.toLowerCase()
+                if (query.length < 3) return
+                const match = facilities.find(f => f.name.toLowerCase().includes(query))
+                if (match) setSelectedFacility(match)
+              }}
+            />
+          </div>
           <FacilityMap
             key="main-map"
             facilities={filteredFacilities}
