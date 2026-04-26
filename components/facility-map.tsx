@@ -95,22 +95,22 @@ function ZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void })
       onZoomChange(map.getZoom())
     },
   })
-  
+
   useEffect(() => {
     onZoomChange(map.getZoom())
   }, [map, onZoomChange])
-  
+
   return null
 }
 
 // Map controller component
-function MapController({ 
-  shouldReset, 
+function MapController({
+  shouldReset,
   onResetComplete,
   flyToState,
   onFlyComplete,
   selectedFacility,
-}: { 
+}: {
   shouldReset: boolean
   onResetComplete: () => void
   flyToState: { lat: number; lng: number; zoom: number } | null
@@ -142,12 +142,12 @@ function MapController({
   return null
 }
 
-export function FacilityMap({ 
-  facilities, 
-  selectedFacility, 
+export function FacilityMap({
+  facilities,
+  selectedFacility,
   onSelectFacility,
   onSelectState,
-  onResetMap, 
+  onResetMap,
   initialCenter,
   stateData = []
 }: FacilityMapProps) {
@@ -264,9 +264,9 @@ export function FacilityMap({
             <p><span class="text-gray-500">Avg. Distance:</span> <span class="font-medium">${state.avg_nearest_verified_km} km</span></p>
           </div>
         </div>`,
-        { 
-          direction: "top", 
-          offset: [0, -10], 
+        {
+          direction: "top",
+          offset: [0, -10],
           opacity: 1,
           className: "state-tooltip"
         }
@@ -391,6 +391,7 @@ export function FacilityMap({
       )}
 
       <MapContainer
+        key="facility-map"
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
         className="w-full h-full"
@@ -402,10 +403,10 @@ export function FacilityMap({
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
-        
+
         <ZoomTracker onZoomChange={handleZoomChange} />
-        
-        <MapController 
+
+        <MapController
           shouldReset={shouldReset}
           onResetComplete={() => setShouldReset(false)}
           flyToState={flyToState}

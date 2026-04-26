@@ -94,34 +94,12 @@ export async function POST(req: Request) {
     }
   }
 
-  // Also fetch upgradeable facilities for specific recommendations
-  let upgradeableContext = ""
-  try {
-    const upgradeRes = await fetch(
-      `https://${process.env.DATABRICKS_HOST}/api/2.0/fs/files/Volumes/workspace/default/globalaihackathon/upgradeable_facilities.json`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.DATABRICKS_TOKEN}`
-        }
-      }
-    )
-    if (upgradeRes.ok) {
-      const upgradeData = await upgradeRes.json()
-      upgradeableContext = `Specific upgradeable facilities (trust score 0.4-0.7, intervention ready): ${JSON.stringify(upgradeData.slice(0, 30))}`
-    }
-  } catch (err) {
-    console.error('Upgradeable fetch failed:', err)
-  }
-
   const systemPrompt = {
     role: "system",
     content: `You are a maternal emergency planning agent for NGO planners in India. You have audited 1,180 maternal health facilities across India using AI-powered trust scoring on the Databricks platform.
 
 Live facility intelligence from Databricks:
 ${databricksContext}
-
-Specific upgradeable facilities ready for intervention:
-${upgradeableContext}
 
 You have access to a web search tool. Use it to supplement the Databricks data when you need:
 - Current maternal mortality rates for specific districts or states
@@ -141,15 +119,14 @@ Rules:
   // First Groq call with tools
   const augmentedMessages = [systemPrompt, ...messages]
   console.error('MESSAGES SENT TO GROQ:', JSON.stringify(augmentedMessages.slice(0, 2)))
-  let firstResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const firstResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    // First Groq call — use tool-use model
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'gpt-4o-mini',
       messages: augmentedMessages,
       tools: TOOLS,
       tool_choice: "auto",
@@ -188,23 +165,22 @@ Rules:
     toolMessages.push(...toolResults)
 
     // Second Groq call with tool results
-    const secondResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'gpt-4o-mini',
         messages: [...augmentedMessages, ...toolMessages],
         stream: false,
-        max_tokens: 3000
+        max_tokens: 1500
       })
     })
 
     const secondData = await secondResponse.json()
     if (!secondData.choices?.[0]?.message?.content) {
-      console.error('Groq second call error:', JSON.stringify(secondData))
       return Response.json({ content: "I encountered an error processing the search results. Please try again." })
     }
     const content = secondData.choices[0].message.content

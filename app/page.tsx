@@ -103,29 +103,45 @@ export default function Home() {
 
   const parseRecommendationsFromMessage = useCallback(
     (content: string) => {
-      if (
-        !content.includes("Recommended Site") &&
-        !content.includes("Top 3") &&
-        !content.includes("Intervention Plan") &&
-        !content.includes("recommended site") &&
-        !content.includes("priority site")
-      ) return
+      // Extract facility names mentioned in the response
+      const matchedFacilities: Facility[] = []
 
       const pool = extractedStates.length > 0
         ? facilities.filter((f) => extractedStates.includes(f.state))
         : facilities
 
-      const candidates = [...pool]
-        .filter((f) => f.trust_score < 0.7)
-        .sort((a, b) => a.trust_score - b.trust_score)
-        .slice(0, 3)
+      // Match any facility name from our dataset that appears in the agent response
+      for (const facility of pool) {
+        if (content.includes(facility.name)) {
+          matchedFacilities.push(facility)
+        }
+        if (matchedFacilities.length >= 6) break
+      }
 
-      if (candidates.length === 0) return
+      // Fallback: if no names matched but response looks like a recommendation
+      if (matchedFacilities.length === 0) {
+        const hasRecommendation =
+          content.includes("recommend") ||
+          content.includes("trust score") ||
+          content.includes("intervention") ||
+          content.includes("Bihar") ||
+          content.includes("Uttar Pradesh")
+
+        if (hasRecommendation) {
+          const candidates = [...pool]
+            .filter((f) => f.trust_score >= 0.4 && f.trust_score < 0.7)
+            .sort((a, b) => b.trust_score - a.trust_score)
+            .slice(0, 3)
+          matchedFacilities.push(...candidates)
+        }
+      }
+
+      if (matchedFacilities.length === 0) return
 
       setRecommendations(
-        candidates.map((facility, i) => ({
+        matchedFacilities.map((facility, i) => ({
           facility,
-          interventionType: INTERVENTION_TYPES[i % INTERVENTION_TYPES.length],
+          interventionType: "Equipment upgrade",
           populationImpact: `~${Math.floor(Math.random() * 50 + 20)}K maternal population`,
           priority: i + 1,
         }))
@@ -332,6 +348,7 @@ export default function Home() {
 
         <div className="flex-1 relative">
           <FacilityMap
+            key="main-map"
             facilities={filteredFacilities}
             selectedFacility={selectedFacility}
             onSelectFacility={setSelectedFacility}
