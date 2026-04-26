@@ -83,7 +83,11 @@ export async function POST(req: Request) {
       )
       if (stateRes.ok) {
         const stateData = await stateRes.json()
-        databricksContext = `Real audited facility data from Databricks (${stateData.length} states): ${JSON.stringify(stateData)}`
+        // Only send top 20 states by gap rate to stay within token limits
+        const topStates = stateData
+          .sort((a: any, b: any) => b.gap_rate - a.gap_rate)
+          .slice(0, 20)
+        databricksContext = `Real audited facility data from Databricks (${stateData.length} states total, showing top 20 by gap rate): ${JSON.stringify(topStates)}`
       }
     } catch (err) {
       console.error('All Databricks sources failed:', err)
@@ -113,24 +117,29 @@ Rules:
 
   // First Groq call with tools
   const augmentedMessages = [systemPrompt, ...messages]
-
+  console.error('MESSAGES SENT TO GROQ:', JSON.stringify(augmentedMessages.slice(0, 2)))
   let firstResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       'Content-Type': 'application/json'
     },
+    // First Groq call — use tool-use model
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama3-groq-70b-8192-tool-use-preview',
       messages: augmentedMessages,
       tools: TOOLS,
       tool_choice: "auto",
       stream: false,
-      max_tokens: 3000
+      max_tokens: 1500
     })
   })
 
   let firstData = await firstResponse.json()
+  if (!firstData.choices?.[0]?.message) {
+    console.error('Groq first call error:', JSON.stringify(firstData))
+    return Response.json({ content: "I encountered an error. Please try again." })
+  }
   let firstMessage = firstData.choices[0].message
 
   // If Groq wants to call tools, execute them
@@ -168,6 +177,10 @@ Rules:
     })
 
     const secondData = await secondResponse.json()
+    if (!secondData.choices?.[0]?.message?.content) {
+      console.error('Groq second call error:', JSON.stringify(secondData))
+      return Response.json({ content: "I encountered an error processing the search results. Please try again." })
+    }
     const content = secondData.choices[0].message.content
     return Response.json({ content })
   }
