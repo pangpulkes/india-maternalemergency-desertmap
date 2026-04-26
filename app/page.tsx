@@ -344,6 +344,10 @@ export default function Home() {
           onSuggestedPrompt={onSuggestedPrompt}
           isLoading={isLoading}
           isSearching={isSearching}
+          onFacilityClick={(name) => {
+            const match = facilities.find(f => name.includes(f.name) || f.name.includes(name))
+            if (match) setSelectedFacility(match)
+          }}
         />
 
         <div className="flex-1 relative">

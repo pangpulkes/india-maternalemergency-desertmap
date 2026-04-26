@@ -18,6 +18,7 @@ interface ChatPanelProps {
   onSuggestedPrompt: (text: string) => void
   isLoading: boolean
   isSearching: boolean
+  onFacilityClick: (name: string) => void
 
 }
 
@@ -36,6 +37,7 @@ export function ChatPanel({
   onSuggestedPrompt,
   isLoading,
   isSearching,
+  onFacilityClick,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -92,9 +94,14 @@ export function ChatPanel({
             >
               {message.role === "user"
                 ? message.content
-                : <ReactMarkdown className="prose prose-sm max-w-none text-gray-800">
-                  {message.content.replace(/\{"query":.*?"reason":.*?\}/gs, '🔍 *Searching web...*')}
-                </ReactMarkdown>}
+                : <div onClick={(e) => {
+                  const text = (e.target as HTMLElement).textContent || ""
+                  if (text.length > 5) onFacilityClick(text)
+                }}>
+                  <ReactMarkdown className="prose prose-sm max-w-none text-gray-800">
+                    {message.content}
+                  </ReactMarkdown>
+                </div>}
             </div>
 
 

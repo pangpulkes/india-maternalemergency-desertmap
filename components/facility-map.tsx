@@ -75,8 +75,8 @@ const STATE_NAME_MAP: Record<string, string> = {
 
 // Get heatmap color based on gap rate
 function getHeatmapColor(gapRate: number): string {
-  if (gapRate > 0.9) return "#dc2626" // dark red
-  if (gapRate > 0.7) return "#f97316" // orange
+  if (gapRate > 0.85) return "#dc2626" // dark red
+  if (gapRate > 0.75) return "#f97316" // orange
   if (gapRate > 0.5) return "#eab308" // yellow
   return "#22c55e" // green
 }
